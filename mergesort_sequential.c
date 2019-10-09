@@ -1,5 +1,7 @@
-#define RANDMAX 44800
-#define MAXARR 200000
+#define RANDMAX 10000000
+#define MAXARR 10000000
+#define PRTCONSOLE 0 //print final result to console or not (0 = false, 1 = true)
+#define WFILE 0 //Write final result to file or not (0 = false, 1 = true) (Only work if ENDGATHER = 1)
 #include<stdlib.h>
 #include<stdio.h>
 #include<mpi.h>
@@ -88,20 +90,29 @@ int main()
     for (i = 0; i < MAXARR; i++) {
         data[i] = rand() % RANDMAX;
     }
+
+    mergeSort(data, 0, MAXARR-1);
 //    clock_t end = clock();
 //    printf("Time Spent: %.16f\n", (double)(end - begin)/CLOCKS_PER_SEC);
     end = MPI_Wtime();
     printf("Time Spent: %.16f\n", end-start);
 
-    FILE *fp;
-    fp = fopen("Output_Sequential.txt", "w+");
-    for (i = 0; i < MAXARR; i++) {
-        if (i != MAXARR-1)
-            fprintf(fp, "%d,", data[i]);
-        else
-            fprintf(fp, "%d", data[i]);
+    if (PRTCONSOLE) {
+        print_int_array(data, MAXARR);
     }
-    fclose(fp);
+
+    if (WFILE) {
+        FILE *fp;
+        fp = fopen("Output_Sequential.txt", "w+");
+        for (i = 0; i < MAXARR; i++) {
+            if (i != MAXARR-1)
+                fprintf(fp, "%d,", data[i]);
+            else
+                fprintf(fp, "%d", data[i]);
+        }
+        fclose(fp);
+    }
+
 
 	return 0;
 }

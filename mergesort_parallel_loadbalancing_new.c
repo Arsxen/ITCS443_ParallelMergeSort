@@ -323,7 +323,7 @@ int main(int argc, char *argv[]) {
             }
             if (WFILE) {
                 FILE *fp;
-                fp = fopen("Output_Parallel2.txt", "w+");
+                fp = fopen("Output_Parallel2_new.txt", "w+");
                 int i;
                 for (i = 0; i < MAXARR; i++) {
                     if (i != MAXARR-1)

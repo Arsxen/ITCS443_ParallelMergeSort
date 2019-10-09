@@ -1,5 +1,7 @@
-#define MAXARR 40
-#define RANDMAX 40
+#define MAXARR 1000000
+#define RANDMAX 1000000
+#define PRTCONSOLE 0 //print final result to console or not (0 = false, 1 = true)
+#define WFILE 0 //Write final result to file or not (0 = false, 1 = true) (Only work if ENDGATHER = 1)
 #include <mpi.h>
 #include <time.h>
 #include <stdio.h>
@@ -18,7 +20,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Status status;
 
-    srand(time(NULL));
+    srand(1234);
 
     start = MPI_Wtime();
 
@@ -29,7 +31,6 @@ int main(int argc, char *argv[]) {
             data[i] = rand() % rand_max;
         }
     }
-    MPI_Bcast(&datasize, 1, MPI_INT, 0, MPI_COMM_WORLD);
     int buffer_size = datasize/world_size;
     int *buffer = malloc(sizeof(int) * buffer_size);
     MPI_Scatter(data, buffer_size, MPI_INT, buffer, buffer_size, MPI_INT, 0, MPI_COMM_WORLD);
@@ -40,8 +41,8 @@ int main(int argc, char *argv[]) {
 
     mergeSort(buffer, 0, buffer_size-1);
 
-    printf("Rank %d -> ", world_rank);
-    print_int_array(buffer, buffer_size);
+//    printf("Rank %d -> ", world_rank);
+//    print_int_array(buffer, buffer_size);
 
     int iter_time = (int)log2(world_size);
     int i;
@@ -65,14 +66,33 @@ int main(int argc, char *argv[]) {
                 buffer[k] = recv[j];
             }
             merge(buffer, 0, previous_size - 1, buffer_size-1);
-            printf("Rank %d -> ", world_rank);
-            print_int_array(buffer, buffer_size);
         }
     }
 
     end = MPI_Wtime();
-
     printf("Process %d Timespent: %.16f\n", world_rank, end-start);
+
+    if (world_rank == 0) {
+        if (PRTCONSOLE) {
+            printf("Rank %d -> ", world_rank);
+            print_int_array(buffer, buffer_size);
+        }
+        if (WFILE) {
+            FILE *fp;
+            fp = fopen("Output_Parallel.txt", "w+");
+            int i;
+            for (i = 0; i < MAXARR; i++) {
+                if (i != MAXARR-1)
+                    fprintf(fp, "%d,", buffer[i]);
+                else
+                    fprintf(fp, "%d", buffer[i]);
+            }
+            fclose(fp);
+        }
+    }
+
+
+
     MPI_Finalize();
 
     return 0;

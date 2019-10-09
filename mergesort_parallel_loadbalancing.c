@@ -1,6 +1,7 @@
-#define RANDMAX 44800
-#define MAXARR 200000
-#define TOTALBINS 448 //ceil(sqrt(MAXARR)) *must be recalculated when MAXARR is modified!
+#define RANDMAX 100
+#define MAXARR 100
+#define TOTALBINS 10 //ceil(sqrt(MAXARR)) *must be recalculated when MAXARR is modified!
+#define PRTCONSOLE 1 //print final result to terminal or not (0 = false, 1 = true)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +52,11 @@ int main(int argc, char *argv[]) {
     int *data = NULL;
     double start,end;
     srand(1234);
-
+    
+    //Init MPI
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     //Create New Datatype for MPI
     MPI_Datatype dt_bin;
     MPI_Type_contiguous(4, MPI_INT, &dt_bin);
@@ -69,10 +74,6 @@ int main(int argc, char *argv[]) {
     MPI_Type_contiguous(3, MPI_INT, &dt_hoptions);
     MPI_Type_commit(&dt_hoptions);
 
-    //Init MPI
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     start = MPI_Wtime();
 
     histogram_options his_options;
@@ -216,49 +217,13 @@ int main(int argc, char *argv[]) {
         MPI_Comm_free(&group_comm);
     }
 
-//    printf("[Final] world: %d ->", world_rank);
-//    print_int_array(buffer, buffsize);
-
-    //Gather recvcount
-    int recvcount[world_size];
-    MPI_Gather(&buffsize, 1, MPI_INT, recvcount, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-
-    //Calculate displacements
-    int *disp = NULL;
-    int *final_data = NULL;
-
-    if (world_rank == 0) {
-        disp = malloc(world_size * sizeof(int));
-        disp[0] = 0;
-        int i;
-        for (i = 1; i < world_size; i++) {
-            disp[i] = disp[i-1] + recvcount[i-1];
-        }
-        final_data = malloc(sizeof(int) * MAXARR);
-    }
-
-    //Gather data from all processes
-    MPI_Gatherv(buffer, buffsize, MPI_INT, final_data, recvcount, disp, MPI_INT, 0, MPI_COMM_WORLD);
     end = MPI_Wtime();
     printf("World Rank %d Time Spent: %.16f\n", world_rank,end-start);
 
-    if (world_rank == 0) {
-//        printf("Sorted: ");
-//        print_int_array(final_data, MAXARR);
-        FILE *fp;
-        fp = fopen("Output_Parallel.txt", "w+");
-        int i;
-        for (i = 0; i < MAXARR; i++) {
-            if (i != MAXARR-1)
-                fprintf(fp, "%d,", final_data[i]);
-            else
-                fprintf(fp, "%d", final_data[i]);
-        }
-        fclose(fp);
+    if (PRTCONSOLE) {
+        printf("[Final] world: %d ->", world_rank);
+        print_int_array(buffer, buffsize);
     }
-
-
 
     MPI_Finalize();
 
@@ -350,7 +315,7 @@ void print_histogram(histogram *hs) {
     printf("Total Bins: %d\n", hs->total_bins);
     for (i = hs->start_bin; i <= hs->end_bin; i++) {
         printf("Bin%d min: %d max: %d freq: %d cumu_freq: %d\n", i, hs->bins[i].lower_bound,
-                hs->bins[i].upper_bound, hs->bins[i].frequency, hs->bins[i].cumulative_freq);
+               hs->bins[i].upper_bound, hs->bins[i].frequency, hs->bins[i].cumulative_freq);
     }
 }
 
@@ -411,8 +376,8 @@ void range_minmax_mergedHistogram(histogram hists[], int size, int *dest_start, 
 
 int *histogram_filtering(int data[], int *ret_size, histogram *hist, range *bin_range) {
     int totalElem = hist->bins[bin_range->max].cumulative_freq -
-            hist->bins[bin_range->min].cumulative_freq +
-            hist->bins[bin_range->min].frequency;
+                    hist->bins[bin_range->min].cumulative_freq +
+                    hist->bins[bin_range->min].frequency;
     int *filter_data = malloc(sizeof(int) * totalElem);
     int i = hist->bins[bin_range->min].cumulative_freq - hist->bins[bin_range->min].frequency;
     int j = 0;
